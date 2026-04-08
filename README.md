@@ -4,6 +4,8 @@
 3. https://cryptoquant.com/asset/btc/chart/exchange-flows/exchange-reserve | Supply BTC
 4. https://www.artemisanalytics.com/
 5. https://intel.arkm.com/explorer/entity/bitmine
+6. https://www.blockchaincenter.net/bitcoin-rainbow-chart/
+7. https://www.bitcoinmagazinepro.com/charts/1-year-hodl-wave/
 
 
 # launch-startups-backlinks
