@@ -121,12 +121,26 @@ def plot_price(ax, raw_data):
     Returns:
         matplotlib.lines.Line2D: The line representing the BTC price.
     """
-    return ax.semilogy(
+    line = ax.semilogy(
         raw_data["Date"].values,
         raw_data["Value"].values,
         color="white",
         label="BTC Price",
     )[0]
+    last = raw_data.loc[raw_data["Date"].idxmax()]
+    ax.plot(
+        last["Date"],
+        last["Value"],
+        marker="o",
+        color="white",
+        markersize=9,
+        markeredgecolor=BACKGROUND_COLOR,
+        markeredgewidth=1.5,
+        linestyle="none",
+        zorder=line.get_zorder() + 1,
+        clip_on=True,
+    )
+    return line
 
 
 def y_format(y, _):
