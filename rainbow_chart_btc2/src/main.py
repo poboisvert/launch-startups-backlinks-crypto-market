@@ -1,7 +1,7 @@
 import argparse
 
 import matplotlib.pyplot as plt
-from plot import create_interactive_plot, create_plot
+from plot import create_interactive_plot, create_plot, show_interactive_fig, write_interactive_html
 
 from data import get_data
 
@@ -25,10 +25,10 @@ def main(
     fig = create_interactive_plot(raw_data, popt)
 
     if html:
-        fig.write_html(html, include_plotlyjs="cdn")
+        write_interactive_html(fig, html)
         print(f"Saved interactive chart to {html}")
     else:
-        fig.show()
+        show_interactive_fig(fig)
 
 
 if __name__ == "__main__":

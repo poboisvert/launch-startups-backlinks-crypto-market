@@ -1,3 +1,4 @@
+import json
 from datetime import timedelta
 
 import matplotlib.dates as mdates
@@ -25,7 +26,13 @@ BAND_WIDTH = 0.3
 NUM_BANDS = 9
 FIGURE_SIZE = (15, 7)
 BACKGROUND_COLOR = "#0d1117"
+PLOT_SURFACE = "#161b22"
+GRID_COLOR = "rgba(48, 54, 61, 0.55)"
+TEXT_COLOR = "#e6edf3"
+MUTED_TEXT = "#8b949e"
+ACCENT_COLOR = "#f7931a"
 EXTEND_MONTHS = 9
+PLOTLY_BOTTOM_MARGIN = 148
 
 HALVING_DATES = [
     pd.Timestamp("2012-11-28"),
@@ -90,6 +97,152 @@ def band_at_price(price: float, bands: list[dict], index: int = -1) -> str | Non
     return None
 
 
+def interactive_plot_post_script() -> str:
+    """Chart shows date only on hover; bottom bar shows all band/BTC details."""
+    return r"""
+(function () {
+  var gd = document.querySelector('.plotly-graph-div');
+  if (!gd) return;
+
+  var style = document.createElement('style');
+  style.textContent = '.hovertext, .hoverlayer .nums { display: none !important; }';
+  document.head.appendChild(style);
+
+  var wrap = gd.parentElement;
+  if (wrap) wrap.style.position = 'relative';
+
+  var dateLabel = document.createElement('div');
+  dateLabel.id = 'btc-rainbow-date-label';
+  dateLabel.style.cssText = [
+    'position:absolute', 'top:14px', 'left:50%', 'transform:translateX(-50%)',
+    'z-index:10', 'display:none', 'padding:6px 16px', 'border-radius:6px',
+    'background:rgba(13,17,23,0.88)', 'border:1px solid #30363d',
+    'color:#e6edf3', 'font:600 15px/1.2 system-ui,-apple-system,sans-serif',
+    'pointer-events:none', 'white-space:nowrap'
+  ].join(';');
+  (wrap || document.body).appendChild(dateLabel);
+
+  var bar = document.createElement('div');
+  bar.id = 'btc-rainbow-hover-bar';
+  bar.style.cssText = [
+    'position:fixed', 'bottom:0', 'left:0', 'right:0', 'z-index:1000',
+    'padding:10px 20px 14px', 'background:#161b22', 'border-top:1px solid #30363d',
+    'color:#e6edf3', 'font:12px/1.45 system-ui,-apple-system,sans-serif',
+    'display:flex', 'flex-wrap:wrap', 'align-items:center', 'gap:6px 14px',
+    'max-height:110px', 'overflow-y:auto', 'box-sizing:border-box'
+  ].join(';');
+  document.body.appendChild(bar);
+  document.body.style.marginBottom = '110px';
+
+  function formatDate(x) {
+    return new Date(x).toLocaleDateString('en-US', {
+      year: 'numeric', month: 'short', day: 'numeric'
+    });
+  }
+
+  function bandChip(name, color, lower, upper) {
+    return '<span style="white-space:nowrap;border-left:3px solid ' + color +
+      ';padding-left:8px"><b>' + name + '</b> ' + lower + ' – ' + upper + '</span>';
+  }
+
+  function btcChip(text) {
+    return '<span style="color:#f7931a;font-weight:600;white-space:nowrap;border-left:3px solid #f7931a;padding-left:8px">' + text + '</span>';
+  }
+
+  function renderFromPoints(pts) {
+    var chips = [];
+    var bands = [];
+    pts.forEach(function (p) {
+      var name = p.data.name;
+      var cd = p.customdata;
+      if (name === 'BTC Price' && typeof cd === 'string') {
+        chips.unshift(btcChip(cd));
+      } else if (name && Array.isArray(cd) && cd.length >= 2) {
+        bands.push({
+          rank: p.data.legendrank != null ? p.data.legendrank : 0,
+          html: bandChip(name, p.data.fillcolor || '#8b949e', cd[1], cd[0])
+        });
+      }
+    });
+    bands.sort(function (a, b) { return a.rank - b.rank; });
+    bands.forEach(function (b) { chips.push(b.html); });
+    return chips.join('');
+  }
+
+  function renderLatest() {
+    var m = gd.layout.meta || {};
+    var chips = [];
+    if (m.latest_price) {
+      var btcText = 'BTC ' + m.latest_price;
+      if (m.latest_band) btcText += ' · ' + m.latest_band;
+      chips.push(btcChip(btcText));
+    }
+    try {
+      var bands = JSON.parse(m.latest_bands || '[]');
+      bands.forEach(function (b) {
+        chips.push(bandChip(b.label, b.color, b.lower, b.upper));
+      });
+    } catch (e) {}
+    if (!chips.length) {
+      return '<span style="color:#8b949e">Hover the chart to inspect band prices</span>';
+    }
+    return chips.join('');
+  }
+
+  var baseShapes = [];
+  setTimeout(function () {
+    baseShapes = (gd.layout.shapes || []).slice();
+  }, 0);
+
+  function hoverLine(x) {
+    return [{
+      type: 'line', xref: 'x', yref: 'paper',
+      x0: x, x1: x, y0: 0, y1: 1,
+      line: { color: 'rgba(139,148,158,0.45)', width: 1, dash: 'dot' }
+    }];
+  }
+
+  function onHover(ev) {
+    if (!ev.points || !ev.points.length) return;
+    var x = ev.points[0].x;
+    dateLabel.textContent = formatDate(x);
+    dateLabel.style.display = 'block';
+    bar.innerHTML = renderFromPoints(ev.points);
+    Plotly.relayout(gd, { shapes: baseShapes.concat(hoverLine(x)) });
+  }
+
+  function onUnhover() {
+    dateLabel.style.display = 'none';
+    bar.innerHTML = renderLatest();
+    Plotly.relayout(gd, { shapes: baseShapes });
+  }
+
+  bar.innerHTML = renderLatest();
+  gd.on('plotly_hover', onHover);
+  gd.on('plotly_unhover', onUnhover);
+})();
+"""
+
+
+def write_interactive_html(fig, path: str) -> None:
+    fig.write_html(
+        path,
+        include_plotlyjs="cdn",
+        post_script=interactive_plot_post_script(),
+        config={"scrollZoom": True, "displayModeBar": True, "displaylogo": False},
+    )
+
+
+def show_interactive_fig(fig) -> None:
+    import tempfile
+    import webbrowser
+    from pathlib import Path
+
+    path = Path(tempfile.gettempdir()) / "bitcoin_rainbow_chart.html"
+    write_interactive_html(fig, str(path))
+    webbrowser.open(path.as_uri())
+
+
 def create_interactive_plot(raw_data, popt):
     """
     Build an interactive Plotly chart with hoverable band price ranges.
@@ -99,10 +252,12 @@ def create_interactive_plot(raw_data, popt):
     """
     extended_dates, bands = compute_bands(raw_data, popt)
     dates = pd.to_datetime(extended_dates)
+    last = raw_data.loc[raw_data["Date"].idxmax()]
+    last_band = band_at_price(last["Value"], bands) or ""
 
     fig = go.Figure()
 
-    for band in bands:
+    for i, band in enumerate(bands):
         hover_upper = [format_price(v) for v in band["upper"]]
         hover_lower = [format_price(v) for v in band["lower"]]
         fig.add_trace(
@@ -111,8 +266,7 @@ def create_interactive_plot(raw_data, popt):
                 y=band["upper"],
                 mode="lines",
                 line=dict(width=0),
-                showlegend=True,
-                name=band["label"],
+                showlegend=False,
                 legendgroup=band["label"],
                 hoverinfo="skip",
             )
@@ -125,16 +279,13 @@ def create_interactive_plot(raw_data, popt):
                 line=dict(width=0),
                 fill="tonexty",
                 fillcolor=band["color"],
-                showlegend=False,
+                name=band["label"],
                 legendgroup=band["label"],
+                legendrank=i,
+                showlegend=True,
+                marker=dict(color=band["color"], size=10, symbol="square"),
                 customdata=np.column_stack([hover_upper, hover_lower]),
-                hovertemplate=(
-                    f"<b>{band['label']}</b><br>"
-                    "%{x|%b %d, %Y}<br>"
-                    "Upper: %{customdata[0]}<br>"
-                    "Lower: %{customdata[1]}"
-                    "<extra></extra>"
-                ),
+                hovertemplate="<extra></extra>",
             )
         )
 
@@ -143,12 +294,9 @@ def create_interactive_plot(raw_data, popt):
     for _, row in raw_data.iterrows():
         idx = date_to_idx.get(pd.Timestamp(row["Date"]), -1)
         zone = band_at_price(row["Value"], bands, index=idx) if idx >= 0 else None
-        zone_text = f"<br>Band: {zone}" if zone else ""
+        zone_text = f" · {zone}" if zone else ""
         price_hover.append(
-            f"<b>BTC Price</b><br>"
-            f"{row['Date']:%b %d, %Y}<br>"
-            f"Price: {format_price(row['Value'])}"
-            f"{zone_text}"
+            f"BTC {format_price(row['Value'])}{zone_text}"
         )
 
     fig.add_trace(
@@ -157,72 +305,100 @@ def create_interactive_plot(raw_data, popt):
             y=raw_data["Value"],
             mode="lines",
             name="BTC Price",
-            line=dict(color="white", width=2),
-            hovertemplate="%{customdata}<extra></extra>",
+            legendrank=100,
+            line=dict(color=ACCENT_COLOR, width=2.2),
+            marker=dict(color=ACCENT_COLOR, size=9, symbol="circle"),
+            hovertemplate="<extra></extra>",
             customdata=price_hover,
         )
     )
 
-    last = raw_data.loc[raw_data["Date"].idxmax()]
     fig.add_trace(
         go.Scatter(
             x=[last["Date"]],
             y=[last["Value"]],
             mode="markers",
-            name="Current price",
-            marker=dict(color="white", size=10, line=dict(color=BACKGROUND_COLOR, width=2)),
+            name="Latest",
             showlegend=False,
-            hovertemplate=(
-                f"<b>Latest</b><br>"
-                f"{last['Date']:%b %d, %Y}<br>"
-                f"Price: {format_price(last['Value'])}<br>"
-                f"Band: {band_at_price(last['Value'], bands) or '—'}"
-                "<extra></extra>"
+            marker=dict(
+                color=ACCENT_COLOR,
+                size=11,
+                line=dict(color=BACKGROUND_COLOR, width=2),
             ),
+            hovertemplate="<extra></extra>",
         )
     )
 
     for halving_date in HALVING_DATES:
         fig.add_vline(
             x=halving_date,
-            line=dict(color="white", width=1),
-            opacity=0.5,
+            line=dict(color=MUTED_TEXT, width=1, dash="dot"),
+            opacity=0.65,
         )
 
     fig.update_layout(
-        title=dict(text="Bitcoin Rainbow Chart", font=dict(color="white", size=18)),
-        template="plotly_dark",
+        title=dict(
+            text="Bitcoin Rainbow Chart",
+            font=dict(color=TEXT_COLOR, size=20, family="system-ui, sans-serif"),
+            x=0.02,
+            xanchor="left",
+        ),
         paper_bgcolor=BACKGROUND_COLOR,
-        plot_bgcolor=BACKGROUND_COLOR,
-        font=dict(color="white"),
-        hovermode="x unified",
-        hoverlabel=dict(bgcolor="#161b22", font_size=13),
+        plot_bgcolor=PLOT_SURFACE,
+        font=dict(color=TEXT_COLOR, family="system-ui, -apple-system, sans-serif", size=12),
+        hovermode="x",
+        hoverdistance=80,
         legend=dict(
             orientation="h",
-            yanchor="bottom",
-            y=1.02,
+            yanchor="top",
+            y=-0.22,
             xanchor="center",
             x=0.5,
-            font=dict(size=11),
+            bgcolor="rgba(13, 17, 23, 0.92)",
+            bordercolor="#30363d",
+            borderwidth=1,
+            font=dict(size=10, color=TEXT_COLOR),
+            itemsizing="constant",
+            itemwidth=30,
+            tracegroupgap=4,
         ),
-        margin=dict(l=60, r=30, t=80, b=50),
+        margin=dict(l=64, r=24, t=56, b=PLOTLY_BOTTOM_MARGIN),
         xaxis=dict(
             showgrid=True,
-            gridcolor="rgba(255,255,255,0.08)",
-            spikemode="across",
-            spikesnap="cursor",
-            showspikes=True,
-            spikecolor="rgba(255,255,255,0.35)",
+            gridcolor=GRID_COLOR,
+            zeroline=False,
+            linecolor="#30363d",
+            tickfont=dict(color=MUTED_TEXT, size=11),
+            showspikes=False,
         ),
         yaxis=dict(
             type="log",
-            title="Price (USD)",
+            title=dict(text="USD (log)", font=dict(color=MUTED_TEXT, size=11)),
             showgrid=True,
-            gridcolor="rgba(255,255,255,0.08)",
+            gridcolor=GRID_COLOR,
+            zeroline=False,
+            linecolor="#30363d",
+            tickfont=dict(color=MUTED_TEXT, size=11),
             tickformat=",.0f",
             exponentformat="none",
         ),
-        height=700,
+        height=720,
+        meta=dict(
+            latest_date=last["Date"].strftime("%b %d, %Y"),
+            latest_price=format_price(last["Value"]),
+            latest_band=last_band,
+            latest_bands=json.dumps(
+                [
+                    {
+                        "label": band["label"],
+                        "color": band["color"],
+                        "lower": format_price(band["lower"][-1]),
+                        "upper": format_price(band["upper"][-1]),
+                    }
+                    for band in bands
+                ]
+            ),
+        ),
     )
 
     fig.update_xaxes(
