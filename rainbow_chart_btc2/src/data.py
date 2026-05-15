@@ -145,7 +145,7 @@ def get_data(file_path: str | Path, full_refresh: bool = False):
         raw_data["Date"] = pd.to_datetime(raw_data["Date"])
 
         last = raw_data["Date"].max().normalize()
-        today_utc = pd.Timestamp.utcnow().normalize()
+        today_utc = pd.Timestamp.utcnow().normalize().tz_localize(None)
         diff_days = (today_utc - last).days
 
         if diff_days > 1:
