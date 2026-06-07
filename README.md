@@ -7,6 +7,7 @@
 6. https://www.blockchaincenter.net/bitcoin-rainbow-chart/
 7. https://www.bitcoinmagazinepro.com/charts/1-year-hodl-wave/
 8. https://beaconcha.in/explorer
+9. https://panteracapital.com/blockchain-letter/dat-value-creation/
 
 
 # launch-startups-backlinks
