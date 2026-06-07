@@ -6,6 +6,7 @@
 5. https://intel.arkm.com/explorer/entity/bitmine
 6. https://www.blockchaincenter.net/bitcoin-rainbow-chart/
 7. https://www.bitcoinmagazinepro.com/charts/1-year-hodl-wave/
+8. https://beaconcha.in/explorer
 
 
 # launch-startups-backlinks
