@@ -8,7 +8,8 @@
 7. https://www.bitcoinmagazinepro.com/charts/1-year-hodl-wave/
 8. https://beaconcha.in/explorer
 9. https://panteracapital.com/blockchain-letter/dat-value-creation/
-10. https://www.bis.org/bcbs/publ/d580.pdf
+10. https://www.bis.org/bcbs/publ/d519.pdf
+11. https://www.bis.org/about/bisih/topics/cbdc.htm
 
 
 # launch-startups-backlinks
