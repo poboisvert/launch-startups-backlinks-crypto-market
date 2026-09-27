@@ -10,6 +10,7 @@
 9. https://panteracapital.com/blockchain-letter/dat-value-creation/
 10. https://www.bis.org/bcbs/publ/d519.pdf
 11. https://www.bis.org/about/bisih/topics/cbdc.htm
+12. https://defillama.com/chain/ethereum
 
 
 # launch-startups-backlinks
