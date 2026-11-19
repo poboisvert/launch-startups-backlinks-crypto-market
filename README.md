@@ -12,6 +12,7 @@
 11. https://www.bis.org/about/bisih/topics/cbdc.htm
 12. https://defillama.com/chain/ethereum
 13. https://cryptorank.io/price/ethereum/analytics
+14. http://polar.sserrano.com/
 
 
 # launch-startups-backlinks
